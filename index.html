@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Gym">
+<meta name="theme-color" content="#0b1220">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-180.png">
+<title>Gym</title>
+<!-- Front door of the gym tracker (Alex 2026-11-24). The app runs on Google Apps Script, inside Google's frames,
+     where a home-screen app on iPhone / iPad loses its storage (and so the login) every time it's closed. This page
+     is the home-screen app instead: it shows the Apps Script app in a frame and keeps the login in its own storage,
+     which stays. Source: branch gym-tracker, frontdoor/index.html. -->
+<style>
+  html, body { margin: 0; height: 100%; background: #0b1220; overflow: hidden; }
+  iframe { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
+</style>
+</head>
+<body>
+<iframe id="app" title="Gym" src="https://script.google.com/macros/s/AKfycbzZhifBHGacjoQXjKny7UBTzTHUs39o2iOYHwzC9Rvpo_GDtRRJhBZo0c3hnsGV4ZXeCQ/exec"
+        allow="autoplay; clipboard-write; fullscreen; web-share"></iframe>
+<script>
+(function () {
+  var KEY = 'gymLogin', frame = document.getElementById('app');
+  // The app page itself runs on a Google address like https://n-xxxx-script.googleusercontent.com, two frames deep.
+  var APP_ORIGIN = /^https:\/\/[a-z0-9-]+-script\.googleusercontent\.com$/;
+  var TOKEN = /^[0-9a-f]{64}$/;
+  function get() { try { return localStorage.getItem(KEY) || ''; } catch (e) { return ''; } }
+  function put(t) { try { if (t) localStorage.setItem(KEY, t); else localStorage.removeItem(KEY); } catch (e) {} }
+  // Only answer a window inside OUR frame (not some other frame or window that happens to be on a Google address).
+  function ours(w) {
+    for (var i = 0; w && i < 8; i++) {
+      if (w === frame.contentWindow) return true;
+      if (w === w.parent) return false;
+      w = w.parent;
+    }
+    return false;
+  }
+  window.addEventListener('message', function (e) {
+    var d = e.data;
+    if (!d || typeof d !== 'object' || typeof d.gym !== 'string') return;
+    if (!APP_ORIGIN.test(e.origin) || !ours(e.source)) return;
+    if (d.gym === 'hello') e.source.postMessage({ gym: 'token', token: get() }, e.origin);
+    else if (d.gym === 'save') put(typeof d.token === 'string' && TOKEN.test(d.token) ? d.token : '');
+    else if (d.gym === 'reload') location.reload();
+  });
+})();
+</script>
+</body>
+</html>
