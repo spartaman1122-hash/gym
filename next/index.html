@@ -1180,7 +1180,7 @@
 <a class="update" id="updateBar" hidden target="_top" href="./">New version of the app is ready &middot; tap to reload</a>
 <div class="toast" id="toast"><span id="toastMsg"></span><button id="toastBtn" hidden>Undo</button></div>
 
-<script>window.GYM_PAGE_VER = "a25ae4f27b70";</script>
+<script>window.GYM_PAGE_VER = "92e77f48d630";</script>
 <script src="config.js"></script>
 <script src="adapter.js"></script>
 <script>
@@ -2192,9 +2192,7 @@ var QUOTES = [
       return { d: d, kg: best.kg, reps: one(avgReps(best)) };
     });
     var html = (w ? chartSvg(pts, 'kg', 'Kg', ' kg') : '') + chartSvg(pts, 'reps', hold ? 'Seconds per set' : 'Reps per set', hold ? ' s' : '');
-    var e1 = dates.map(function (d) { var m = 0; byDate[d][person].forEach(function (s) { m = Math.max(m, e1rmOf(s)); }); return { d: d, e1: one(m) }; })
-      .filter(function (q) { return q.e1 > 0; });
-    if (e1.length) html += chartSvg(e1, 'e1', 'Estimated 1RM', ' kg');
+    // (Estimated 1RM chart removed, Alex 2026-11-27: "remove the estimated 1rm". The strength level stays.)
     if (pts.length < 2) html += '<p class="hint">Log it on another day and the line starts.</p>';
     return html;
   }
@@ -2257,9 +2255,7 @@ var QUOTES = [
       '<div class="slvbar">' + LEVEL_NAMES.map(function (n, i) { return '<i class="' + (i <= l.lv ? 'on' : '') + '"></i>'; }).join('') + '</div>' +
       '<div class="slvnames">' + LEVEL_NAMES.map(function (n) { return '<span>' + n + '</span>'; }).join('') + '</div>';
     if (mine && l.thr) {
-      var sg = function (v) { return (v >= 0 ? '+' : '') + fmtKg(v) + ' kg'; };
-      h += '<div class="hint">' + (l.lv < 4 ? 'Next: ' + LEVEL_NAMES[l.lv + 1] + ' at ' + sg(l.thr[l.lv + 1]) + ' on a 1-rep max (you: ' + sg(l.best) + ').'
-        : 'Top level. Your 1-rep max: ' + sg(l.best) + '.') + ' Added kg on top of your bodyweight.</div>';
+      h += '<div class="hint">' + (l.lv < 4 ? 'Next: ' + LEVEL_NAMES[l.lv + 1] + '.' : 'Top level.') + '</div>';   // no 1RM kg shown (Alex 2026-11-27)
     }
     return h + '<div class="hint">Standards for men: strengthlevel.com community data, at your latest bodyweight.</div></div>';
   }
@@ -2609,9 +2605,16 @@ var QUOTES = [
   }
   function hitOf(p, skill) { var h = {}; skillsData().ticks.forEach(function (t) { if (t.name === p && t.skill === skill) h[t.level] = t.date; }); return h; }
   function topLevel(p, l) { var h = hitOf(p, l.skill), top = ''; l.levels.forEach(function (v) { if (h[v]) top = v; }); return top; }
-  function skillsHtml(p) {
+  function skillsHtml(p, fold) {
     var me = p === DATA.me, L = laddersOf(p), h = '<section class="card">';
-    h += '<h2>Skill ladder</h2><p class="hint">' + (me ? 'Tap a level when you hit it (+' + XP_SKILL_LEVEL + ' XP each). Tap again to take it back.' : esc(p) + "'s levels. Only " + esc(p) + ' can tick them.') + '</p>';
+    if (fold) {   // XP tab (Alex 2026-11-27): folds like History, closed shows "Skill ladder · Front lever one leg, Handstand free 30 s +2"
+      var open = load('sklOpen') === '1';
+      var tops = L.map(function (l) { var t = topLevel(p, l); return t ? l.skill + ' ' + (/^[A-Z][a-z]/.test(t) ? t.charAt(0).toLowerCase() + t.slice(1) : t) : ''; }).filter(Boolean);
+      var sum = tops.length ? ' \u00b7 ' + tops.slice(0, 2).join(', ') + (tops.length > 2 ? ' +' + (tops.length - 2) : '') : '';
+      h = '<section class="card logcard' + (open ? ' open' : '') + '" id="sklCard"><button type="button" class="logtoggle" id="sklToggle" aria-expanded="' + open + '" aria-controls="sklBody">' +
+        '<h2>Skill ladder<span class="bwsum" id="sklSum">' + esc(sum) + '</span></h2><span class="chev" aria-hidden="true">&#9662;</span></button><div id="sklBody"' + (open ? '' : ' hidden') + '>';
+    } else h += '<h2>Skill ladder</h2>';
+    h += '<p class="hint">' + (me ? 'Tap a level when you hit it (+' + XP_SKILL_LEVEL + ' XP each). Tap again to take it back.' : esc(p) + "'s levels. Only " + esc(p) + ' can tick them.') + '</p>';
     h += L.map(function (l) {
       var hit = hitOf(p, l.skill), top = topLevel(p, l), nextShown = false;
       return '<div class="ladder"><div class="lhead"><b>' + esc(l.skill) + (howtoOf(l.skill) ? '<button type="button" class="howq" data-howto="' + esc(l.skill) + '" aria-label="How to: ' + esc(l.skill) + '"></button>' : '') + '</b><small>' + (top ? esc(top) : 'not started') + '</small>' +
@@ -2639,13 +2642,13 @@ var QUOTES = [
       var hidden = (skillsData().own[p] || []).filter(function (o) { return !o.levels.length; });
       if (state.skillEdit && hidden.length) h += '<p class="hint">Hidden: ' + hidden.map(function (o) { return '<button type="button" class="linkish" data-skrm="' + esc(o.skill) + '" data-skback="1">' + esc(o.skill) + '</button>'; }).join(', ') + ' (tap to bring back)</p>';
     }
-    return h + '</section>';
+    return h + (fold ? '</div>' : '') + '</section>';
   }
   // The skill ladder lives on the XP tab (Alex 2026-11-27) for people who switched it on, plus their profile Skills tab.
   function renderXpSkills() {
     if (!$('xpSkills')) return;
     if (!$('pageProfile').hidden) { $('xpSkills').innerHTML = ''; return; }   // one copy at a time (same button ids)
-    $('xpSkills').innerHTML = DATA && DATA.me && skillsOnFor(DATA.me) ? skillsHtml(DATA.me) : '';
+    $('xpSkills').innerHTML = DATA && DATA.me && skillsOnFor(DATA.me) ? skillsHtml(DATA.me, true) : '';
   }
   function renderSkillsSpots() { renderXpSkills(); renderProfile(); }
   function renderAcSkills() {
@@ -2663,7 +2666,10 @@ var QUOTES = [
     queued('setSkillsOn', on).then(function (d) { setData(d); renderAcSkills(); renderXpSkills(); })
       .catch(function (e) { DATA.skillsOn = keep; setData(DATA); renderAcSkills(); renderXpSkills(); toast('Not saved: ' + errMsg(e), null, true); });
   });
-  if ($('xpSkills')) $('xpSkills').addEventListener('click', function (ev) { tapSkill(ev); });
+  if ($('xpSkills')) $('xpSkills').addEventListener('click', function (ev) {
+    if (ev.target.closest('#sklToggle')) { save('sklOpen', $('sklBody').hidden ? '1' : '0'); renderXpSkills(); return; }   // open / closed remembered
+    tapSkill(ev);
+  });
   function renderSkillSum() {
     if (!DATA || !DATA.me || !$('skillSum')) return;
     var tops = laddersOf(DATA.me).map(function (l) { var t = topLevel(DATA.me, l); return t ? l.skill + ' ' + t.toLowerCase() : ''; }).filter(String);
@@ -3811,7 +3817,7 @@ var QUOTES = [
     else h += '<div class="row2" style="margin-top:8px"><button type="button" class="small" id="gymHere">\uD83D\uDCCD ' + (me.gym ? "I'm at a different gym" : 'This is my gym') + '</button></div>';
     h += '<label class="sw"><input type="checkbox" id="gymShare"' + (me.share ? ' checked' : '') + '> Show when I\'m at the gym</label>';
     h += '<div class="lbl">Your phone number</div><div class="row2"><input class="lginput" id="gymPhone" inputmode="tel" maxlength="20" placeholder="For Text / Call / FaceTime"><button type="button" class="small" id="gymPhoneGo">Save</button></div>';
-    h += '<div class="note">Only checks while the app is open on your screen. Your location is never shown to anyone: friends only see "at the gym". Your number is only shown to people logged in to the app.</div>';
+    h += '<div class="note">Only checks while the app is open on your screen. Your location is never shown to anyone: friends only see "at the gym". Your number is only shown to friends while you are at the gym (and never when you hide yourself).</div>';
     $('acGym').innerHTML = h;
     $('gymPhone').value = me.phone || '';
   }
