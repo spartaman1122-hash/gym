@@ -1180,7 +1180,7 @@
 <a class="update" id="updateBar" hidden target="_top" href="./">New version of the app is ready &middot; tap to reload</a>
 <div class="toast" id="toast"><span id="toastMsg"></span><button id="toastBtn" hidden>Undo</button></div>
 
-<script>window.GYM_PAGE_VER = "92e77f48d630";</script>
+<script>window.GYM_PAGE_VER = "0207d828a140";</script>
 <script src="config.js"></script>
 <script src="adapter.js"></script>
 <script>
@@ -3783,16 +3783,15 @@ var QUOTES = [
     var names = others.map(function (h) { return h.name; });
     if (gymSeen) others.forEach(function (h) { if (gymSeen.indexOf(h.name) < 0 && Date.now() - h.since < 10 * 60000) toast(h.name + ' just got to the gym \uD83D\uDCAA'); });
     gymSeen = names;
-    var invite = meIn ? (DATA.people || []).filter(function (n) { return n !== DATA.me && names.indexOf(n) < 0 && telOf(n); }) : [];
-    if (!others.length && !invite.length) { $('gymCard').hidden = true; return; }
+    // Numbers only come for people at the gym now (privacy, 2026-11-27): the invite opens Messages with the text, you pick who.
+    var invite = meIn;
+    if (!others.length && !invite) { $('gymCard').hidden = true; return; }
     var h = '<h2>' + (others.length ? 'At the gym now' : "You're at the gym") + '</h2>';
     h += others.map(function (x) {
       return '<div class="gymrow"><div class="who"><b>' + esc(x.name) + '</b><small>' + esc(x.gym) + ' &middot; since ' + hhmm(x.since) + '</small></div>' +
         '<div class="gymbtns">' + contactBtns(x.name) + '</div></div>';
     }).join('');
-    if (invite.length) h += '<div class="gyminv"><span>Invite:</span>' + invite.map(function (n) {
-      return '<a class="chip" href="sms:' + telOf(n) + '&body=' + encodeURIComponent("I'm at the gym, come through \uD83D\uDCAA") + '" target="_top">\uD83D\uDCAC Join me, ' + esc(n) + '</a>';
-    }).join('') + '</div>';
+    if (invite) h += '<div class="gyminv"><a class="chip" id="gymInvite" href="sms:&body=' + encodeURIComponent("I'm at the gym, come through \uD83D\uDCAA") + '" target="_top">\uD83D\uDCAC Invite a mate</a></div>';
     h += '<div class="gymnote">Only shows people who have the app open at their gym.</div>';
     $('gymCard').innerHTML = h; $('gymCard').hidden = false;
   }
